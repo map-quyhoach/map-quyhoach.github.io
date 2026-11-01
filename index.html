@@ -62,17 +62,29 @@ const toggle=o=>sheet.classList.toggle('open',o);$('peek').onclick=()=>toggle();
 let y0=null;$('peek').addEventListener('touchstart',e=>y0=e.touches[0].clientY);$('peek').addEventListener('touchend',e=>{if(y0==null)return;const d=e.changedTouches[0].clientY-y0;if(Math.abs(d)>30)toggle(d<0);y0=null});
 let me=null;$('fLoc').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(me)map.removeLayer(me);me=L.circleMarker(ll,{radius:8,color:'#fff',fillColor:'#1976d2',fillOpacity:1,weight:3}).addTo(map);map.setView(ll,15)},()=>alert('Không lấy được vị trí. Hãy cho phép quyền định vị.'),{enableHighAccuracy:true}):alert('Thiết bị không hỗ trợ định vị');
 let shape=null,ovl=null;const norm=s=>s.replace(/\b(xã|phường|huyện|quận|thị xã|tx\.?)\s*/gi,'').trim();
-async function nom(q){const u='https://nominatim.openstreetmap.org/search?format=json&polygon_geojson=1&limit=8&countrycodes=vn&viewbox=105.25,21.40,106.05,20.55&bounded=1&q='+encodeURIComponent(q);return (await fetch(u,{headers:{'Accept-Language':'vi'}})).json()}
+const fold=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/\b(xa|phuong|thi tran|huyen|quan|thi xa|tp|thanh pho|tx)\b\.?/g,' ').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+let GZ=null;const gzP=fetch('hanoi-gazetteer.json').then(r=>r.json()).then(j=>{GZ=j.map(x=>Object.assign(x,{f:fold(x.n),fp:fold(x.p||'')}));return GZ}).catch(()=>null);
+function local(raw){if(!GZ)return[];const ps=raw.split(',').map(fold).filter(Boolean),k=ps[0],ctx=ps.slice(1).filter(c=>c!='ha noi');if(!k)return[];
+ const out=[];for(const x of GZ){let s=x.f==k?10:x.f.startsWith(k)?6:(' '+x.f+' ').includes(' '+k+' ')?4:x.f.includes(k)?2:0;if(!s)continue;
+  for(const c of ctx){if(x.fp.includes(c))s+=5;else if(x.f.includes(c))s+=1;else s-=3}if(!ctx.length&&!x.o)s+=1;out.push([s,x])}
+ return out.sort((a,b)=>b[0]-a[0]).slice(0,8).map(([s,x])=>({name:x.n+(x.o?' (cũ)':' (mới)'),display_name:x.o?'Đơn vị cũ trước 1/7/2025'+(x.p?', nay thuộc '+x.p:'')+', Hà Nội':'Đơn vị hành chính mới (từ 1/7/2025), Hà Nội',lat:x.c[0],lon:x.c[1],geojson:x.g,osm_type:'relation',osm_id:x.id,type:x.o?'historic':'administrative'}))}
+const tfetch=(u,ms=6000)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);return fetch(u,{signal:c.signal,referrerPolicy:'origin'}).finally(()=>clearTimeout(t))};
+let lastN=0;async function nom(q){const w=1100-(Date.now()-lastN);if(w>0)await new Promise(r=>setTimeout(r,w));lastN=Date.now();
+ const r=await tfetch('https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&polygon_threshold=0.0005&limit=8&countrycodes=vn&accept-language=vi&viewbox=105.25,21.40,106.05,20.55&bounded=1&q='+encodeURIComponent(q));if(!r.ok)throw Error(r.status);return r.json()}
+async function photon(q){const r=await tfetch('https://photon.komoot.io/api/?limit=8&bbox=105.25,20.55,106.05,21.40&q='+encodeURIComponent(q));if(!r.ok)throw Error(r.status);
+ return (await r.json()).features.map(f=>({name:f.properties.name,display_name:[f.properties.name,f.properties.county,f.properties.city||f.properties.state].filter(Boolean).join(', ')+' (Photon)',lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],osm_type:{R:'relation',W:'way',N:'node'}[f.properties.osm_type],osm_id:f.properties.osm_id,type:f.properties.osm_value}))}
+async function online(raw){const parts=raw.split(',').map(norm).filter(Boolean);
+ try{for(const t of [raw+', Hà Nội',parts[0]+', Hà Nội']){const o=await nom(t);if(o.length)return o}}catch(e){console.warn('Nominatim lỗi, chuyển Photon',e)}
+ try{return await photon(raw)}catch(e){console.warn('Photon lỗi',e);return null}}
 async function search(){const raw=$('q').value.trim();if(!raw)return;$('q').blur();const res=$('res');res.style.display='block';res.innerHTML='<div class=r>Đang tìm…</div>';
- const parts=raw.split(',').map(norm).filter(Boolean);let out=[];
- try{for(const t of [raw+', Hà Nội',parts[0]+', Hà Nội',raw]){out=await nom(t);if(out.length)break}}catch(e){res.innerHTML='<div class=r>Lỗi mạng, thử lại.</div>';return}
- res.innerHTML=out.length?'':'<div class=r>Không tìm thấy. Thử tên xã/phường mới (sau 1/7/2025).</div>';
+ await gzP;let out=local(raw);if(!out.length){out=await online(raw);if(out===null){res.innerHTML='<div class=r>Không tìm thấy trong danh mục xã/phường và không kết nối được dịch vụ tìm kiếm. Kiểm tra mạng rồi thử lại.</div>';return}}
+ res.innerHTML=out.length?'':'<div class=r>Không tìm thấy. Thử tên xã/phường (mới hoặc cũ), VD: soc son, dong xuan.</div>';
  out.forEach(o=>{const d=document.createElement('div');d.className='r';d.innerHTML='<b>'+o.name+'</b><br><small>'+o.display_name+'</small>';d.onclick=()=>{show(o);res.style.display='none'};res.appendChild(d)});
- if(out.length){show(out[0]);setTimeout(()=>res.style.display='none',1500)}}
+ if(out.length){show(out[0]);setTimeout(()=>res.style.display='none',2500)}}
 function show(o){if(shape)map.removeLayer(shape);
  shape=o.geojson&&o.geojson.type!='Point'?L.geoJSON(o.geojson,{style:{color:'#d00',weight:3,fillOpacity:.05}}):L.marker([o.lat,o.lon]);shape.addTo(map);
  shape.getBounds?map.fitBounds(shape.getBounds(),{paddingTopLeft:[10,70],paddingBottomRight:[10,80]}):map.setView([o.lat,o.lon],15);
- const old=o.type=='historic'?' (ranh giới cũ – trước sáp nhập 2025)':'';$('peekT').textContent=o.name+old;
+ const old=o.type=='historic'&&!/\(cũ\)/.test(o.name)?' (ranh giới cũ – trước sáp nhập 2025)':'';$('peekT').textContent=o.name+old;
  $('info').innerHTML='<h4>'+o.name+old+'</h4><div style="font-size:13px">'+o.display_name+'<br>Toạ độ: '+(+o.lat).toFixed(5)+', '+(+o.lon).toFixed(5)+'</div><a target=_blank href="https://www.openstreetmap.org/'+o.osm_type+'/'+o.osm_id+'">Xem trên OSM</a><a target=_blank href="https://quyhoach.hanoi.gov.vn/">Tra quy hoạch chính thức ↗</a>'}
 $('go').onclick=search;$('q').onkeydown=e=>{if(e.key=='Enter')search()};
 $('ov').onclick=()=>{const f=$('img').files[0];if(!f)return alert('Chọn ảnh');const a=$('nw').value.split(',').map(Number),b=$('se').value.split(',').map(Number);if(ovl)map.removeLayer(ovl);ovl=L.imageOverlay(URL.createObjectURL(f),[a,b],{opacity:+$('op').value}).addTo(map)};
