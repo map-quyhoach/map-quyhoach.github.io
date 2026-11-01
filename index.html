@@ -1,0 +1,74 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tra cứu vị trí & quy hoạch Hà Nội</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>body{margin:0;font-family:system-ui,sans-serif}#map{position:absolute;top:0;bottom:0;left:360px;right:0}
+#side{position:absolute;top:0;bottom:0;left:0;width:340px;padding:10px;overflow:auto;background:#fafafa;border-right:1px solid #ddd;font-size:14px}
+input[type=text]{width:70%;padding:6px}button{padding:6px}.r{cursor:pointer;padding:4px;border-bottom:1px solid #eee}.r:hover{background:#eef}
+.note{color:#a33;font-size:12px}a{display:block;margin:3px 0}</style></head><body>
+<div id="side"><h3>Tra cứu vị trí – Quy hoạch Hà Nội</h3>
+<input id="q" type="text" placeholder="VD: Đông Xuân, Sóc Sơn"><button id="go">Tìm</button>
+<div id="res"></div><div id="info"></div>
+<h4>Lớp nền</h4><label><input type="radio" name="b" value="osm" checked> Bản đồ OSM</label> <label><input type="radio" name="b" value="sat"> Vệ tinh (Esri)</label>
+<h4>Lớp quy hoạch (QH tổng thể 100 năm – bản vẽ hồ sơ lấy ý kiến 3/2026)</h4>
+<label><input type="radio" name="pl" value="none"> Tắt</label><br>
+<label><input type="radio" name="pl" value="sdd2045" checked> Bản đồ QH sử dụng đất đến 2045 (QH-06)</label><br>
+<label><input type="radio" name="pl" value="sdd2065"> Bản đồ QH sử dụng đất đến 2065</label><br>
+Độ mờ lớp QH: <input id="pop" type="range" min="0" max="1" step="0.05" value="0.65"><br>
+<label><input type="checkbox" id="lu"> OSM landuse (hiện trạng, dữ liệu mở, zoom ≥ 13)</label>
+<div class="note">Định vị gần đúng: ảnh bản vẽ (1600×2262 px, ~70 m/px) được khớp affine với ranh giới hành chính Hà Nội (OSM). Sai số có thể vài trăm mét. KHÔNG có giá trị pháp lý; nội dung phê duyệt cuối cùng theo QĐ 2512/QĐ-UBND ngày 13/5/2026.</div>
+<details><summary>Chú giải (ký hiệu)</summary><img id="leg" src="layers/sdd2045-legend.webp" style="width:100%"></details>
+<details><summary>Bản vẽ gốc (xem ảnh lớn)</summary>
+<a target=_blank href="layers/full-06-su-dung-dat-2045.webp">QH sử dụng đất 2045</a><a target=_blank href="layers/full-07-su-dung-dat-2065.webp">QH sử dụng đất 2065</a><a target=_blank href="layers/full-04-dinh-huong-khong-gian-2045.webp">Định hướng không gian 2045</a><a target=_blank href="layers/full-11-giao-thong.webp">Quy hoạch giao thông</a></details>
+<h4>Chồng ảnh bản đồ quy hoạch (tự nạp)</h4>
+<div class="note">Chưa có nguồn WMS/tile quy hoạch công khai hợp lệ. Bạn có thể nạp ảnh bản đồ quy hoạch chính thức (PNG/JPG trích từ hồ sơ đồ án) và nhập toạ độ 2 góc để chồng lên bản đồ.</div>
+<input type="file" id="img" accept="image/*"><br>
+Góc Tây-Bắc (lat,lng): <input id="nw" type="text" value="21.40,105.75"><br>
+Góc Đông-Nam (lat,lng): <input id="se" type="text" value="21.15,106.00"><br>
+<button id="ov">Chồng ảnh</button><br>Độ mờ: <input id="op" type="range" min="0" max="1" step="0.05" value="0.6">
+<h4>Nguồn chính thức</h4>
+<a target="_blank" href="https://quyhoach.hanoi.gov.vn/">Hệ thống thông tin quy hoạch Hà Nội (thử nghiệm)</a>
+<a target="_blank" href="https://quyhoach.hanoi.vn/">Cổng quy hoạch Sở QH-KT Hà Nội</a>
+<a target="_blank" href="https://vanban.hanoi.gov.vn/van-ban-chi-dao-dieu-hanh/phe-duyet-quy-hoach-tong-the-thu-do-ha-noi-tam-nhin-100-nam-246238">QĐ 2512/QĐ-UBND (13/5/2026) – QH tổng thể 100 năm</a>
+<a target="_blank" href="https://xaydungchinhsach.chinhphu.vn/toan-van-quyet-dinh-so-2512-qd-ubnd-phe-duyet-quy-hoach-tong-the-thu-do-ha-noi-tam-nhin-100-nam-119260515164719871.htm">Toàn văn QĐ 2512 (Chinhphu.vn)</a>
+<div class="note">Thông tin quy hoạch chính xác chỉ do Sở QH-KT Hà Nội / UBND xã-phường cung cấp. Trang này chỉ định vị ranh giới hành chính (dữ liệu OSM) và không tự tạo dữ liệu quy hoạch.</div></div>
+<div id="map"></div>
+<script>
+const map=L.map('map').setView([21.03,105.85],10);
+const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'});
+document.querySelectorAll('input[name=b]').forEach(r=>r.onchange=()=>{if(r.value=='sat'){map.removeLayer(osm);sat.addTo(map)}else{map.removeLayer(sat);osm.addTo(map)}});
+let shape=null,ovl=null;
+const PB=[[20.5157548615872, 105.28061799321732], [21.37404817204769, 106.02665177451762]];const PL={sdd2045:L.imageOverlay('layers/sdd2045.webp',PB,{opacity:.65}),sdd2065:L.imageOverlay('layers/sdd2065.webp',PB,{opacity:.65})};let cur=PL.sdd2045.addTo(map);
+document.querySelectorAll('input[name=pl]').forEach(r=>r.onchange=()=>{if(cur)map.removeLayer(cur);cur=PL[r.value]||null;if(cur){cur.setOpacity(+pop.value).addTo(map);leg.src='layers/'+r.value+'-legend.webp'}});
+const pop=document.getElementById('pop'),leg=document.getElementById('leg');pop.oninput=()=>cur&&cur.setOpacity(+pop.value);
+const LC={residential:'#e88',commercial:'#f6c',retail:'#f9c',industrial:'#a6c',farmland:'#ee9',forest:'#6b6',meadow:'#cfa',cemetery:'#999',military:'#c33',construction:'#fc6',religious:'#88f',recreation_ground:'#9e9',grass:'#bfb',orchard:'#ad6',aquaculture:'#6cf',basin:'#6cf',reservoir:'#6cf'};
+let luL=L.layerGroup(),luKey='';
+async function loadLU(){if(!document.getElementById('lu').checked||map.getZoom()<13){map.removeLayer(luL);return}
+ const b=map.getBounds(),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(v=>v.toFixed(3)).join(',');if(bb==luKey){luL.addTo(map);return}luKey=bb;
+ const q='[out:json][timeout:25];(way["landuse"]('+bb+');relation["landuse"]('+bb+'););out geom;';
+ const j=await (await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)})).json();luL.clearLayers();
+ j.elements.forEach(e=>{if(!e.geometry)return;const t=e.tags.landuse;L.polygon(e.geometry.map(p=>[p.lat,p.lon]),{color:LC[t]||'#888',weight:1,fillOpacity:.4}).bindPopup('OSM landuse: '+t).addTo(luL)});luL.addTo(map);}
+document.getElementById('lu').onchange=loadLU;map.on('moveend',loadLU);
+const norm=s=>s.replace(/\b(xã|phường|huyện|quận|thị xã|tx\.?)\s*/gi,'').trim();
+async function nom(q){const u='https://nominatim.openstreetmap.org/search?format=json&polygon_geojson=1&addressdetails=1&limit=8&countrycodes=vn&viewbox=105.25,21.40,106.05,20.55&bounded=1&q='+encodeURIComponent(q);return (await fetch(u,{headers:{'Accept-Language':'vi'}})).json();}
+async function search(){const raw=document.getElementById('q').value.trim();if(!raw)return;const res=document.getElementById('res');res.textContent='Đang tìm...';
+ const parts=raw.split(',').map(norm).filter(Boolean);
+ // thử: nguyên văn + Hà Nội; chỉ tên xã + Hà Nội (tên mới sau sáp nhập 2025 không còn cấp huyện); nguyên văn
+ const tries=[raw+', Hà Nội',parts[0]+', Hà Nội',raw];let out=[];
+ for(const t of tries){out=await nom(t);if(out.length)break;}
+ res.innerHTML=out.length?'':'Không tìm thấy. Thử tên xã/phường mới (sau 1/7/2025) hoặc bỏ tên huyện.';
+ out.forEach(o=>{const d=document.createElement('div');d.className='r';d.textContent=o.display_name+' ['+o.type+']';d.onclick=()=>show(o);res.appendChild(d)});
+ if(out.length)show(out[0]);}
+function show(o){if(shape)map.removeLayer(shape);
+ shape=o.geojson&&o.geojson.type!='Point'?L.geoJSON(o.geojson,{style:{color:'#d00',weight:3,fillOpacity:.05}}):L.marker([o.lat,o.lon]);shape.addTo(map);
+ shape.getBounds?map.fitBounds(shape.getBounds()):map.setView([o.lat,o.lon],14);
+ const tag=o.type=='historic'?' <b>(ranh giới cũ – trước sáp nhập 2025)</b>':'';
+ document.getElementById('info').innerHTML='<h4>'+o.name+tag+'</h4>'+o.display_name+'<br>Toạ độ: '+(+o.lat).toFixed(5)+', '+(+o.lon).toFixed(5)+
+ '<br><a target=_blank href="https://www.openstreetmap.org/'+o.osm_type+'/'+o.osm_id+'">Xem trên OSM</a><a target=_blank href="https://quyhoach.hanoi.gov.vn/">Tra quy hoạch chính thức tại vị trí này ↗</a><a target=_blank href="https://www.google.com/search?q='+encodeURIComponent('quy hoạch phân khu '+o.name+' Hà Nội site:hanoi.gov.vn')+'">Tìm đồ án quy hoạch (hanoi.gov.vn) ↗</a>';}
+document.getElementById('go').onclick=search;document.getElementById('q').onkeydown=e=>{if(e.key=='Enter')search()};
+document.getElementById('ov').onclick=()=>{const f=document.getElementById('img').files[0];if(!f)return alert('Chọn ảnh');
+ const a=document.getElementById('nw').value.split(',').map(Number),b=document.getElementById('se').value.split(',').map(Number);
+ if(ovl)map.removeLayer(ovl);ovl=L.imageOverlay(URL.createObjectURL(f),[a,b],{opacity:+document.getElementById('op').value}).addTo(map);};
+document.getElementById('op').oninput=e=>ovl&&ovl.setOpacity(+e.target.value);
+</script></body></html>
