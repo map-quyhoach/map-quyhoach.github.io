@@ -38,6 +38,9 @@ input[type=range]{width:100%}a{display:block;margin:6px 0;color:#1565c0}.note{co
 <h4>Lớp quy hoạch</h4><div class="seg"><label><input type="radio" name="pl" value="sdd2045" checked>SDĐ 2045</label><label><input type="radio" name="pl" value="sdd2065">SDĐ 2065</label><label><input type="radio" name="pl" value="none">Tắt</label></div>
 Độ mờ: <input id="pop" type="range" min="0" max="1" step="0.05" value="0.65">
 <h4>Bản đồ nền</h4><div class="seg"><label><input type="radio" name="b" value="osm" checked>Bản đồ</label><label><input type="radio" name="b" value="sat">Vệ tinh</label></div>
+<label style="display:block;margin-top:8px"><input type="checkbox" id="ss" checked> QH đô thị vệ tinh Sóc Sơn – nét (~5 m/điểm ảnh)</label>
+<div class="note" style="color:#555">Sơ đồ vị trí Phân khu Sóc Sơn khu 6 trên nền QH chung đô thị vệ tinh Sóc Sơn, ảnh đăng trên qhkt.hanoi.gov.vn (8/2024, QĐ 4397/QĐ-UBND), lấy từ bản lưu web.archive.org. Ảnh không kèm chú giải màu; định vị bằng QL3, đường sắt, cao tốc Nội Bài–Bắc Ninh (sai số khoảng 20–50 m).</div>
+<a target=_blank href="layers/full-socson-qhc-2030.jpg">Ảnh gốc Sóc Sơn (1839×2179)</a>
 <label style="display:block;margin-top:8px"><input type="checkbox" id="lu"> OSM landuse (hiện trạng, zoom ≥ 13)</label>
 <div class="note">Bản vẽ hồ sơ lấy ý kiến 3/2026, định vị gần đúng (sai số có thể vài trăm mét). KHÔNG có giá trị pháp lý; nội dung phê duyệt theo QĐ 2512/QĐ-UBND ngày 13/5/2026.</div>
 <details><summary>Chú giải</summary><img id="leg" src="layers/sdd2045-legend.webp" style="width:100%"></details>
@@ -95,7 +98,10 @@ async function loadLU(){if(!$('lu').checked||map.getZoom()<13){map.removeLayer(l
  try{const j=await (await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent('[out:json][timeout:25];(way["landuse"]('+bb+');relation["landuse"]('+bb+'););out geom;')})).json();luL.clearLayers();
  j.elements.forEach(e=>{if(!e.geometry)return;const t=e.tags.landuse;L.polygon(e.geometry.map(p=>[p.lat,p.lon]),{color:LC[t]||'#888',weight:1,fillOpacity:.4}).bindPopup('OSM landuse: '+t).addTo(luL)});luL.addTo(map)}catch(e){}}
 $('lu').onchange=loadLU;map.on('moveend',loadLU);
+const SSB=L.latLngBounds([[21.2029,105.8020],[21.3075,105.8970]]);
+const ss=L.tileLayer('tiles/socson-2030/{z}/{x}/{y}.webp',{minZoom:12,maxNativeZoom:16,maxZoom:19,bounds:SSB,opacity:.8,zIndex:5});ss.addTo(map);
+$('ss').onchange=()=>$('ss').checked?ss.addTo(map):map.removeLayer(ss);$('pop').addEventListener('input',()=>ss.setOpacity(Math.min(1,+$('pop').value+.15)));
 const zN=document.createElement('div');zN.style.cssText='position:fixed;z-index:1000;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 64px);background:#000b;color:#fff;font-size:12px;padding:6px 10px;border-radius:12px;display:none;max-width:90vw;text-align:center';zN.textContent='Bản vẽ QH chỉ có độ chi tiết ~70 m/điểm ảnh – phóng to thêm không rõ hơn. Tra chính xác tại quyhoach.hanoi.gov.vn';document.body.appendChild(zN);
-map.on('zoomend',()=>{zN.style.display=cur&&map.getZoom()>=14?'block':'none'});
+map.on('zoomend moveend',()=>{zN.style.display=cur&&map.getZoom()>=14&&!(map.hasLayer(ss)&&SSB.contains(map.getCenter()))?'block':'none'});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
