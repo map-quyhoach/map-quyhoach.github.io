@@ -1,74 +1,87 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tra cứu vị trí & quy hoạch Hà Nội</title>
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tra cứu Quy hoạch Hà Nội</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#b71c1c">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="QH Hà Nội">
+<link rel="apple-touch-icon" href="icons/icon-192.png"><link rel="icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>body{margin:0;font-family:system-ui,sans-serif}#map{position:absolute;top:0;bottom:0;left:360px;right:0}
-#side{position:absolute;top:0;bottom:0;left:0;width:340px;padding:10px;overflow:auto;background:#fafafa;border-right:1px solid #ddd;font-size:14px}
-input[type=text]{width:70%;padding:6px}button{padding:6px}.r{cursor:pointer;padding:4px;border-bottom:1px solid #eee}.r:hover{background:#eef}
-.note{color:#a33;font-size:12px}a{display:block;margin:3px 0}</style></head><body>
-<div id="side"><h3>Tra cứu vị trí – Quy hoạch Hà Nội</h3>
-<input id="q" type="text" placeholder="VD: Đông Xuân, Sóc Sơn"><button id="go">Tìm</button>
-<div id="res"></div><div id="info"></div>
-<h4>Lớp nền</h4><label><input type="radio" name="b" value="osm" checked> Bản đồ OSM</label> <label><input type="radio" name="b" value="sat"> Vệ tinh (Esri)</label>
-<h4>Lớp quy hoạch (QH tổng thể 100 năm – bản vẽ hồ sơ lấy ý kiến 3/2026)</h4>
-<label><input type="radio" name="pl" value="none"> Tắt</label><br>
-<label><input type="radio" name="pl" value="sdd2045" checked> Bản đồ QH sử dụng đất đến 2045 (QH-06)</label><br>
-<label><input type="radio" name="pl" value="sdd2065"> Bản đồ QH sử dụng đất đến 2065</label><br>
-Độ mờ lớp QH: <input id="pop" type="range" min="0" max="1" step="0.05" value="0.65"><br>
-<label><input type="checkbox" id="lu"> OSM landuse (hiện trạng, dữ liệu mở, zoom ≥ 13)</label>
-<div class="note">Định vị gần đúng: ảnh bản vẽ (1600×2262 px, ~70 m/px) được khớp affine với ranh giới hành chính Hà Nội (OSM). Sai số có thể vài trăm mét. KHÔNG có giá trị pháp lý; nội dung phê duyệt cuối cùng theo QĐ 2512/QĐ-UBND ngày 13/5/2026.</div>
-<details><summary>Chú giải (ký hiệu)</summary><img id="leg" src="layers/sdd2045-legend.webp" style="width:100%"></details>
-<details><summary>Bản vẽ gốc (xem ảnh lớn)</summary>
-<a target=_blank href="layers/full-06-su-dung-dat-2045.webp">QH sử dụng đất 2045</a><a target=_blank href="layers/full-07-su-dung-dat-2065.webp">QH sử dụng đất 2065</a><a target=_blank href="layers/full-04-dinh-huong-khong-gian-2045.webp">Định hướng không gian 2045</a><a target=_blank href="layers/full-11-giao-thong.webp">Quy hoạch giao thông</a></details>
-<h4>Chồng ảnh bản đồ quy hoạch (tự nạp)</h4>
-<div class="note">Chưa có nguồn WMS/tile quy hoạch công khai hợp lệ. Bạn có thể nạp ảnh bản đồ quy hoạch chính thức (PNG/JPG trích từ hồ sơ đồ án) và nhập toạ độ 2 góc để chồng lên bản đồ.</div>
-<input type="file" id="img" accept="image/*"><br>
-Góc Tây-Bắc (lat,lng): <input id="nw" type="text" value="21.40,105.75"><br>
-Góc Đông-Nam (lat,lng): <input id="se" type="text" value="21.15,106.00"><br>
-<button id="ov">Chồng ảnh</button><br>Độ mờ: <input id="op" type="range" min="0" max="1" step="0.05" value="0.6">
-<h4>Nguồn chính thức</h4>
-<a target="_blank" href="https://quyhoach.hanoi.gov.vn/">Hệ thống thông tin quy hoạch Hà Nội (thử nghiệm)</a>
-<a target="_blank" href="https://quyhoach.hanoi.vn/">Cổng quy hoạch Sở QH-KT Hà Nội</a>
-<a target="_blank" href="https://vanban.hanoi.gov.vn/van-ban-chi-dao-dieu-hanh/phe-duyet-quy-hoach-tong-the-thu-do-ha-noi-tam-nhin-100-nam-246238">QĐ 2512/QĐ-UBND (13/5/2026) – QH tổng thể 100 năm</a>
-<a target="_blank" href="https://xaydungchinhsach.chinhphu.vn/toan-van-quyet-dinh-so-2512-qd-ubnd-phe-duyet-quy-hoach-tong-the-thu-do-ha-noi-tam-nhin-100-nam-119260515164719871.htm">Toàn văn QĐ 2512 (Chinhphu.vn)</a>
-<div class="note">Thông tin quy hoạch chính xác chỉ do Sở QH-KT Hà Nội / UBND xã-phường cung cấp. Trang này chỉ định vị ranh giới hành chính (dữ liệu OSM) và không tự tạo dữ liệu quy hoạch.</div></div>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,-apple-system,sans-serif;font-size:15px}
+#map{position:fixed;inset:0}
+#top{position:fixed;z-index:1000;top:calc(env(safe-area-inset-top) + 8px);left:8px;right:8px;max-width:480px}
+#sb{display:flex;background:#fff;border-radius:24px;box-shadow:0 2px 8px #0004;overflow:hidden}
+#q{flex:1;border:0;padding:12px 16px;font-size:16px;outline:none;min-width:0}#sb button{border:0;background:none;padding:0 14px;font-size:18px}
+#res{background:#fff;border-radius:12px;margin-top:6px;box-shadow:0 2px 8px #0004;max-height:45vh;overflow:auto;display:none}
+.r{padding:10px 14px;border-bottom:1px solid #eee;font-size:14px}.r small{color:#777}
+.fab{position:fixed;z-index:1000;right:10px;width:44px;height:44px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 6px #0004;font-size:20px}
+#fLoc{bottom:calc(env(safe-area-inset-bottom) + 96px)}#fLay{bottom:calc(env(safe-area-inset-bottom) + 148px)}
+#sheet{position:fixed;z-index:1001;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -2px 10px #0003;
+ max-height:75vh;transform:translateY(calc(100% - 64px - env(safe-area-inset-bottom)));transition:transform .25s;display:flex;flex-direction:column}
+#sheet.open{transform:none}
+#peek{padding:8px 16px 12px;cursor:pointer;flex:none}#peek:before{content:"";display:block;width:40px;height:5px;border-radius:3px;background:#ccc;margin:0 auto 8px}
+#peekT{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#peekS{font-size:12px;color:#666}
+#body{overflow:auto;padding:0 16px calc(16px + env(safe-area-inset-bottom))}
+h4{margin:14px 0 6px}.seg{display:flex;gap:6px;flex-wrap:wrap}.seg label{border:1px solid #ccc;border-radius:16px;padding:6px 12px;font-size:14px}
+.seg input{display:none}.seg label:has(input:checked){background:#b71c1c;color:#fff;border-color:#b71c1c}
+input[type=range]{width:100%}a{display:block;margin:6px 0;color:#1565c0}.note{color:#a33;font-size:12px;line-height:1.4}
+.leaflet-top.leaflet-left{display:none}
+@media (min-width:900px){#sheet{left:0;top:0;right:auto;width:360px;max-height:none;border-radius:0;transform:none}#peek:before{display:none}
+ #top{left:372px}#map{left:360px}.fab{display:none}}
+</style></head><body>
 <div id="map"></div>
+<div id="top"><div id="sb"><input id="q" type="search" enterkeyhint="search" placeholder="Tìm xã/phường, VD: Đông Xuân, Sóc Sơn"><button id="go" aria-label="Tìm">🔍</button></div><div id="res"></div></div>
+<button class="fab" id="fLay" aria-label="Lớp bản đồ">🗂️</button><button class="fab" id="fLoc" aria-label="Vị trí của tôi">📍</button>
+<div id="sheet"><div id="peek"><div id="peekT">Quy hoạch Hà Nội – tầm nhìn 100 năm</div><div id="peekS">Lớp: QH sử dụng đất 2045 · vuốt/chạm để mở</div></div>
+<div id="body"><div id="info"></div>
+<h4>Lớp quy hoạch</h4><div class="seg"><label><input type="radio" name="pl" value="sdd2045" checked>SDĐ 2045</label><label><input type="radio" name="pl" value="sdd2065">SDĐ 2065</label><label><input type="radio" name="pl" value="none">Tắt</label></div>
+Độ mờ: <input id="pop" type="range" min="0" max="1" step="0.05" value="0.65">
+<h4>Bản đồ nền</h4><div class="seg"><label><input type="radio" name="b" value="osm" checked>Bản đồ</label><label><input type="radio" name="b" value="sat">Vệ tinh</label></div>
+<label style="display:block;margin-top:8px"><input type="checkbox" id="lu"> OSM landuse (hiện trạng, zoom ≥ 13)</label>
+<div class="note">Bản vẽ hồ sơ lấy ý kiến 3/2026, định vị gần đúng (sai số có thể vài trăm mét). KHÔNG có giá trị pháp lý; nội dung phê duyệt theo QĐ 2512/QĐ-UBND ngày 13/5/2026.</div>
+<details><summary>Chú giải</summary><img id="leg" src="layers/sdd2045-legend.webp" style="width:100%"></details>
+<details><summary>Bản vẽ gốc</summary><a target=_blank href="layers/full-06-su-dung-dat-2045.webp">QH sử dụng đất 2045</a><a target=_blank href="layers/full-07-su-dung-dat-2065.webp">QH sử dụng đất 2065</a><a target=_blank href="layers/full-04-dinh-huong-khong-gian-2045.webp">Định hướng không gian 2045</a><a target=_blank href="layers/full-11-giao-thong.webp">Quy hoạch giao thông</a></details>
+<details><summary>Chồng ảnh của bạn</summary><input type="file" id="img" accept="image/*"><br>Góc Tây-Bắc (lat,lng): <input id="nw" value="21.40,105.75"><br>Góc Đông-Nam (lat,lng): <input id="se" value="21.15,106.00"><br><button id="ov">Chồng ảnh</button> Độ mờ <input id="op" type="range" min="0" max="1" step="0.05" value="0.6"></details>
+<h4>Nguồn chính thức</h4>
+<a target=_blank href="https://quyhoach.hanoi.gov.vn/">Hệ thống thông tin quy hoạch Hà Nội</a>
+<a target=_blank href="https://vanban.hanoi.gov.vn/van-ban-chi-dao-dieu-hanh/phe-duyet-quy-hoach-tong-the-thu-do-ha-noi-tam-nhin-100-nam-246238">QĐ 2512/QĐ-UBND</a>
+<a target=_blank href="https://xaydungchinhsach.chinhphu.vn/toan-van-quyet-dinh-so-2512-qd-ubnd-phe-duyet-quy-hoach-tong-the-thu-do-ha-noi-tam-nhin-100-nam-119260515164719871.htm">Toàn văn QĐ 2512 (Chinhphu.vn)</a>
+<div class="note">Ranh giới hành chính: © OpenStreetMap (Nominatim). Thông tin chính xác do Sở QH-KT Hà Nội / UBND xã-phường cung cấp.</div></div></div>
 <script>
-const map=L.map('map').setView([21.03,105.85],10);
+const $=i=>document.getElementById(i),sheet=$('sheet');
+const map=L.map('map',{zoomControl:false}).setView([21.03,105.85],10);
 const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'});
 document.querySelectorAll('input[name=b]').forEach(r=>r.onchange=()=>{if(r.value=='sat'){map.removeLayer(osm);sat.addTo(map)}else{map.removeLayer(sat);osm.addTo(map)}});
-let shape=null,ovl=null;
-const PB=[[20.5157548615872, 105.28061799321732], [21.37404817204769, 106.02665177451762]];const PL={sdd2045:L.imageOverlay('layers/sdd2045.webp',PB,{opacity:.65}),sdd2065:L.imageOverlay('layers/sdd2065.webp',PB,{opacity:.65})};let cur=PL.sdd2045.addTo(map);
-document.querySelectorAll('input[name=pl]').forEach(r=>r.onchange=()=>{if(cur)map.removeLayer(cur);cur=PL[r.value]||null;if(cur){cur.setOpacity(+pop.value).addTo(map);leg.src='layers/'+r.value+'-legend.webp'}});
-const pop=document.getElementById('pop'),leg=document.getElementById('leg');pop.oninput=()=>cur&&cur.setOpacity(+pop.value);
-const LC={residential:'#e88',commercial:'#f6c',retail:'#f9c',industrial:'#a6c',farmland:'#ee9',forest:'#6b6',meadow:'#cfa',cemetery:'#999',military:'#c33',construction:'#fc6',religious:'#88f',recreation_ground:'#9e9',grass:'#bfb',orchard:'#ad6',aquaculture:'#6cf',basin:'#6cf',reservoir:'#6cf'};
-let luL=L.layerGroup(),luKey='';
-async function loadLU(){if(!document.getElementById('lu').checked||map.getZoom()<13){map.removeLayer(luL);return}
- const b=map.getBounds(),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(v=>v.toFixed(3)).join(',');if(bb==luKey){luL.addTo(map);return}luKey=bb;
- const q='[out:json][timeout:25];(way["landuse"]('+bb+');relation["landuse"]('+bb+'););out geom;';
- const j=await (await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)})).json();luL.clearLayers();
- j.elements.forEach(e=>{if(!e.geometry)return;const t=e.tags.landuse;L.polygon(e.geometry.map(p=>[p.lat,p.lon]),{color:LC[t]||'#888',weight:1,fillOpacity:.4}).bindPopup('OSM landuse: '+t).addTo(luL)});luL.addTo(map);}
-document.getElementById('lu').onchange=loadLU;map.on('moveend',loadLU);
-const norm=s=>s.replace(/\b(xã|phường|huyện|quận|thị xã|tx\.?)\s*/gi,'').trim();
-async function nom(q){const u='https://nominatim.openstreetmap.org/search?format=json&polygon_geojson=1&addressdetails=1&limit=8&countrycodes=vn&viewbox=105.25,21.40,106.05,20.55&bounded=1&q='+encodeURIComponent(q);return (await fetch(u,{headers:{'Accept-Language':'vi'}})).json();}
-async function search(){const raw=document.getElementById('q').value.trim();if(!raw)return;const res=document.getElementById('res');res.textContent='Đang tìm...';
- const parts=raw.split(',').map(norm).filter(Boolean);
- // thử: nguyên văn + Hà Nội; chỉ tên xã + Hà Nội (tên mới sau sáp nhập 2025 không còn cấp huyện); nguyên văn
- const tries=[raw+', Hà Nội',parts[0]+', Hà Nội',raw];let out=[];
- for(const t of tries){out=await nom(t);if(out.length)break;}
- res.innerHTML=out.length?'':'Không tìm thấy. Thử tên xã/phường mới (sau 1/7/2025) hoặc bỏ tên huyện.';
- out.forEach(o=>{const d=document.createElement('div');d.className='r';d.textContent=o.display_name+' ['+o.type+']';d.onclick=()=>show(o);res.appendChild(d)});
- if(out.length)show(out[0]);}
+const PB=[[20.5157548615872, 105.28061799321732], [21.37404817204769, 106.02665177451762]];const PN={sdd2045:'QH sử dụng đất 2045',sdd2065:'QH sử dụng đất 2065',none:'Tắt lớp QH'};
+const PL={sdd2045:L.imageOverlay('layers/sdd2045.webp',PB,{opacity:.65}),sdd2065:L.imageOverlay('layers/sdd2065.webp',PB,{opacity:.65})};let cur=PL.sdd2045.addTo(map);
+document.querySelectorAll('input[name=pl]').forEach(r=>r.onchange=()=>{if(cur)map.removeLayer(cur);cur=PL[r.value]||null;if(cur){cur.setOpacity(+$('pop').value).addTo(map);$('leg').src='layers/'+r.value+'-legend.webp'}$('peekS').textContent='Lớp: '+PN[r.value]});
+$('pop').oninput=()=>cur&&cur.setOpacity(+$('pop').value);
+const toggle=o=>sheet.classList.toggle('open',o);$('peek').onclick=()=>toggle();$('fLay').onclick=()=>toggle(true);map.on('click',()=>toggle(false));
+let y0=null;$('peek').addEventListener('touchstart',e=>y0=e.touches[0].clientY);$('peek').addEventListener('touchend',e=>{if(y0==null)return;const d=e.changedTouches[0].clientY-y0;if(Math.abs(d)>30)toggle(d<0);y0=null});
+let me=null;$('fLoc').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(me)map.removeLayer(me);me=L.circleMarker(ll,{radius:8,color:'#fff',fillColor:'#1976d2',fillOpacity:1,weight:3}).addTo(map);map.setView(ll,15)},()=>alert('Không lấy được vị trí. Hãy cho phép quyền định vị.'),{enableHighAccuracy:true}):alert('Thiết bị không hỗ trợ định vị');
+let shape=null,ovl=null;const norm=s=>s.replace(/\b(xã|phường|huyện|quận|thị xã|tx\.?)\s*/gi,'').trim();
+async function nom(q){const u='https://nominatim.openstreetmap.org/search?format=json&polygon_geojson=1&limit=8&countrycodes=vn&viewbox=105.25,21.40,106.05,20.55&bounded=1&q='+encodeURIComponent(q);return (await fetch(u,{headers:{'Accept-Language':'vi'}})).json()}
+async function search(){const raw=$('q').value.trim();if(!raw)return;$('q').blur();const res=$('res');res.style.display='block';res.innerHTML='<div class=r>Đang tìm…</div>';
+ const parts=raw.split(',').map(norm).filter(Boolean);let out=[];
+ try{for(const t of [raw+', Hà Nội',parts[0]+', Hà Nội',raw]){out=await nom(t);if(out.length)break}}catch(e){res.innerHTML='<div class=r>Lỗi mạng, thử lại.</div>';return}
+ res.innerHTML=out.length?'':'<div class=r>Không tìm thấy. Thử tên xã/phường mới (sau 1/7/2025).</div>';
+ out.forEach(o=>{const d=document.createElement('div');d.className='r';d.innerHTML='<b>'+o.name+'</b><br><small>'+o.display_name+'</small>';d.onclick=()=>{show(o);res.style.display='none'};res.appendChild(d)});
+ if(out.length){show(out[0]);setTimeout(()=>res.style.display='none',1500)}}
 function show(o){if(shape)map.removeLayer(shape);
  shape=o.geojson&&o.geojson.type!='Point'?L.geoJSON(o.geojson,{style:{color:'#d00',weight:3,fillOpacity:.05}}):L.marker([o.lat,o.lon]);shape.addTo(map);
- shape.getBounds?map.fitBounds(shape.getBounds()):map.setView([o.lat,o.lon],14);
- const tag=o.type=='historic'?' <b>(ranh giới cũ – trước sáp nhập 2025)</b>':'';
- document.getElementById('info').innerHTML='<h4>'+o.name+tag+'</h4>'+o.display_name+'<br>Toạ độ: '+(+o.lat).toFixed(5)+', '+(+o.lon).toFixed(5)+
- '<br><a target=_blank href="https://www.openstreetmap.org/'+o.osm_type+'/'+o.osm_id+'">Xem trên OSM</a><a target=_blank href="https://quyhoach.hanoi.gov.vn/">Tra quy hoạch chính thức tại vị trí này ↗</a><a target=_blank href="https://www.google.com/search?q='+encodeURIComponent('quy hoạch phân khu '+o.name+' Hà Nội site:hanoi.gov.vn')+'">Tìm đồ án quy hoạch (hanoi.gov.vn) ↗</a>';}
-document.getElementById('go').onclick=search;document.getElementById('q').onkeydown=e=>{if(e.key=='Enter')search()};
-document.getElementById('ov').onclick=()=>{const f=document.getElementById('img').files[0];if(!f)return alert('Chọn ảnh');
- const a=document.getElementById('nw').value.split(',').map(Number),b=document.getElementById('se').value.split(',').map(Number);
- if(ovl)map.removeLayer(ovl);ovl=L.imageOverlay(URL.createObjectURL(f),[a,b],{opacity:+document.getElementById('op').value}).addTo(map);};
-document.getElementById('op').oninput=e=>ovl&&ovl.setOpacity(+e.target.value);
+ shape.getBounds?map.fitBounds(shape.getBounds(),{paddingTopLeft:[10,70],paddingBottomRight:[10,80]}):map.setView([o.lat,o.lon],15);
+ const old=o.type=='historic'?' (ranh giới cũ – trước sáp nhập 2025)':'';$('peekT').textContent=o.name+old;
+ $('info').innerHTML='<h4>'+o.name+old+'</h4><div style="font-size:13px">'+o.display_name+'<br>Toạ độ: '+(+o.lat).toFixed(5)+', '+(+o.lon).toFixed(5)+'</div><a target=_blank href="https://www.openstreetmap.org/'+o.osm_type+'/'+o.osm_id+'">Xem trên OSM</a><a target=_blank href="https://quyhoach.hanoi.gov.vn/">Tra quy hoạch chính thức ↗</a>'}
+$('go').onclick=search;$('q').onkeydown=e=>{if(e.key=='Enter')search()};
+$('ov').onclick=()=>{const f=$('img').files[0];if(!f)return alert('Chọn ảnh');const a=$('nw').value.split(',').map(Number),b=$('se').value.split(',').map(Number);if(ovl)map.removeLayer(ovl);ovl=L.imageOverlay(URL.createObjectURL(f),[a,b],{opacity:+$('op').value}).addTo(map)};
+$('op').oninput=e=>ovl&&ovl.setOpacity(+e.target.value);
+const LC={residential:'#e88',commercial:'#f6c',retail:'#f9c',industrial:'#a6c',farmland:'#ee9',forest:'#6b6',meadow:'#cfa',cemetery:'#999',military:'#c33',construction:'#fc6',religious:'#88f',grass:'#bfb',orchard:'#ad6',aquaculture:'#6cf',basin:'#6cf',reservoir:'#6cf'};
+let luL=L.layerGroup(),luKey='';
+async function loadLU(){if(!$('lu').checked||map.getZoom()<13){map.removeLayer(luL);return}const b=map.getBounds(),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(v=>v.toFixed(3)).join(',');if(bb==luKey){luL.addTo(map);return}luKey=bb;
+ try{const j=await (await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent('[out:json][timeout:25];(way["landuse"]('+bb+');relation["landuse"]('+bb+'););out geom;')})).json();luL.clearLayers();
+ j.elements.forEach(e=>{if(!e.geometry)return;const t=e.tags.landuse;L.polygon(e.geometry.map(p=>[p.lat,p.lon]),{color:LC[t]||'#888',weight:1,fillOpacity:.4}).bindPopup('OSM landuse: '+t).addTo(luL)});luL.addTo(map)}catch(e){}}
+$('lu').onchange=loadLU;map.on('moveend',loadLU);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
