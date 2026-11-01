@@ -50,7 +50,7 @@ input[type=range]{width:100%}a{display:block;margin:6px 0;color:#1565c0}.note{co
 <div class="note">Ranh giới hành chính: © OpenStreetMap (Nominatim). Thông tin chính xác do Sở QH-KT Hà Nội / UBND xã-phường cung cấp.</div></div></div>
 <script>
 const $=i=>document.getElementById(i),sheet=$('sheet');
-const map=L.map('map',{zoomControl:false}).setView([21.03,105.85],10);
+const map=L.map('map',{zoomControl:false,maxZoom:19}).setView([21.03,105.85],10);
 const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'});
 document.querySelectorAll('input[name=b]').forEach(r=>r.onchange=()=>{if(r.value=='sat'){map.removeLayer(osm);sat.addTo(map)}else{map.removeLayer(sat);osm.addTo(map)}});
@@ -95,5 +95,7 @@ async function loadLU(){if(!$('lu').checked||map.getZoom()<13){map.removeLayer(l
  try{const j=await (await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent('[out:json][timeout:25];(way["landuse"]('+bb+');relation["landuse"]('+bb+'););out geom;')})).json();luL.clearLayers();
  j.elements.forEach(e=>{if(!e.geometry)return;const t=e.tags.landuse;L.polygon(e.geometry.map(p=>[p.lat,p.lon]),{color:LC[t]||'#888',weight:1,fillOpacity:.4}).bindPopup('OSM landuse: '+t).addTo(luL)});luL.addTo(map)}catch(e){}}
 $('lu').onchange=loadLU;map.on('moveend',loadLU);
+const zN=document.createElement('div');zN.style.cssText='position:fixed;z-index:1000;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 64px);background:#000b;color:#fff;font-size:12px;padding:6px 10px;border-radius:12px;display:none;max-width:90vw;text-align:center';zN.textContent='Bản vẽ QH chỉ có độ chi tiết ~70 m/điểm ảnh – phóng to thêm không rõ hơn. Tra chính xác tại quyhoach.hanoi.gov.vn';document.body.appendChild(zN);
+map.on('zoomend',()=>{zN.style.display=cur&&map.getZoom()>=14?'block':'none'});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
